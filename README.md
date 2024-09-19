@@ -1,8 +1,8 @@
-A plugin for the Serverless framework to create a version alias
-for the Lambda function which is named after the current git
-SHA.
+A plugin for the Serverless framework to deploy the static assets into a separate
+deployment bucket.
 
-This makes it easier to deduce the version that is running.
+This ensures that that the lambda isn't invoked for serving assets which in turn
+reduces the costs and improves performace.
 
 > [!NOTE]
 > This plugin has only been tested with the AWS provider and will
@@ -28,10 +28,34 @@ https://www.serverless.com/framework/docs-guides-plugins
 
 ## Usage
 
-There isn't anything specific to be done once the plugin is installed.
-When you trigger a deployment, the plugin will take the short SHA
-of the current directory (assuming that the project is in fact a
-a Git repository).
+### Configuration
+
+The configuration of the plugin is done by defining a custom `servestatic`
+object in your serverless.yml with your specific configuration.
+
+All settings are optional and will be set to reasonable defaults if missing.
+
+See the sections below for detailed descriptions of the settings.
+
+```yaml
+custom:
+  servestatic:
+    include:
+      - 'public/**/*' # The list of assets to be included
+    exclude:
+      - '**/' # The list of assets to be excluded
+    public: false # A boolean indicating whether thr S3 bucket is public
+```
+
+If `public` is enabled, the assets in the bucket can be served directly from the
+bucket. Public acess can be disabled if you intend to front the bucket via
+CloudFront.
+
+#### Using CloudFront
+
+When you trigger a deployment, the custom resource will unpack all the assets
+that the match the glob patterns into the bucket that will be used for serving
+static assets.
 
 ```
 $ sls deploy
@@ -40,11 +64,6 @@ Deploying test-logcls to stage dev (us-east-1)
 Compiling with Typescript...
 Using local tsconfig.json - tsconfig.json
 Typescript compiled.
-
-Warning: Package patterns at function level are only applicable if package.individually is set to true at service level or function level in serverless.yaml. The framework will ignore the patterns defined at the function level and apply only the service-wide ones.
-Warning: cloudformation scan results:
-
-Alias "40d313f" added for function "ProbotLambdaFunction" in the CloudFormation template
 
 ✔ Service deployed to stack test-logcls-dev (104s)
 

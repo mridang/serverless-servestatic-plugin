@@ -1,6 +1,7 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import Serverless from 'serverless';
 import Plugin, { Logging } from 'serverless/classes/Plugin';
-import { execSync } from 'node:child_process';
 
 class ServerlessServeStaticPlugin implements Plugin {
   public readonly hooks: Plugin.Hooks = {};
@@ -11,103 +12,52 @@ class ServerlessServeStaticPlugin implements Plugin {
     private readonly serverless: Serverless,
     private readonly options: Serverless.Options,
     private readonly logging: Logging,
+    private readonly settings: {
+      include?: string[];
+      exclude?: string[];
+      public?: boolean;
+    },
   ) {
     this.hooks = {
       'after:aws:package:finalize:mergeCustomProviderResources':
-        this.addAliases.bind(this),
+        this.deployStatic.bind(this),
     };
     this.stage =
       this.serverless.service.provider.stage || this.options.stage || 'dev';
+    this.settings = this.serverless.service.custom?.servestatic || {};
   }
 
-  getGitCommitSha(): string | null {
-    try {
-      return execSync('git rev-parse --short HEAD').toString().trim();
-    } catch (error) {
-      this.logging.log.notice('Not a Git repository or Git command failed');
-      return null;
-    }
-  }
-
-  addAliases() {
-    const commitSha = this.getGitCommitSha();
-
-    if (!commitSha) {
-      this.logging.log.notice(
-        'Skipping alias creation as the commit SHA could not be determined',
-      );
-      return;
-    }
-
+  deployStatic() {
     const template =
       this.serverless.service.provider.compiledCloudFormationTemplate;
 
     template.Resources = {
       ...template.Resources,
-      CustomResourceHandlerLambdaFunction: {
-        Type: 'AWS::Lambda::Function',
+      ServeStaticAssetsBucket: {
+        Type: 'AWS::S3::Bucket',
+        DeletionPolicy: 'Retain',
         Properties: {
-          FunctionName: `cfn-servestatic-${this.serverless.service.service}-${this.stage}-resource`,
-          Description:
-            'A custom resource to manage function aliases for Serverless Framework projects',
-          Runtime: 'nodejs20.x',
-          Architectures: ['arm64'],
-          MemorySize: 128,
-          Handler: 'index.handler',
-          Role: { 'Fn::GetAtt': ['CustomResourceHandlerLambdaRole', 'Arn'] },
-          Code: {
-            ZipFile: `
-              const { LambdaClient, CreateAliasCommand, DeleteAliasCommand, ListAliasesCommand } = require('@aws-sdk/client-lambda');
-              const response = require('cfn-response');
-
-              exports.handler = async (event, context) => {
-                console.log(event);
-                const lambdaClient = new LambdaClient();
-                const functionName = event.ResourceProperties.FunctionName;
-                const aliasName = event.ResourceProperties.AliasName;
-                const functionVersion = event.ResourceProperties.FunctionVersion;
-
-                try {
-                  if (event.RequestType === 'Create' || event.RequestType === 'Update') {
-                    const listAliasesCommand = new ListAliasesCommand({ FunctionName: functionName });
-				    const aliases = await lambdaClient.send(listAliasesCommand);
-
-			  	    if (aliases.Aliases.some(alias => alias.Name === aliasName)) {
-					  console.warn(\`Alias \${aliasName} already exists for function \${functionName}\`);
-				    } else {
-					  const createAliasCommand = new CreateAliasCommand({
-					    FunctionName: functionName,
-					    Name: aliasName,
-					    Description: \`Alias for commit \${aliasName}\`,
-					    FunctionVersion: functionVersion,
-					  });
-					  await lambdaClient.send(createAliasCommand);
-                    }
-                  } else if (event.RequestType === 'Delete') {
-                    const listAliasesCommand = new ListAliasesCommand({ FunctionName: functionName });
-                    const aliases = await lambdaClient.send(listAliasesCommand);
-
-                    for (const alias of aliases.Aliases) {
-                      const deleteAliasCommand = new DeleteAliasCommand({
-                        FunctionName: functionName,
-                        Name: alias.Name,
-                      });
-                      await lambdaClient.send(deleteAliasCommand);
-                    }
-                  }
-                  await response.send(event, context, response.SUCCESS, undefined, \`\${functionName}/servestatic\`);
-                } catch (error) {
-                  console.error(error);
-                  await response.send(event, context, response.FAILED, undefined, \`\${functionName}/servestatic\`);
-                }
-              };
-            `,
+          BucketEncryption: {
+            ServerSideEncryptionConfiguration: [
+              {
+                ServerSideEncryptionByDefault: {
+                  SSEAlgorithm: 'AES256',
+                },
+              },
+            ],
+          },
+          PublicAccessBlockConfiguration: {
+            BlockPublicAcls: this.settings.public === false,
+            BlockPublicPolicy: this.settings.public === false,
+            IgnorePublicAcls: this.settings.public === false,
+            RestrictPublicBuckets: this.settings.public === false,
           },
         },
       },
-      CustomResourceHandlerLambdaRole: {
+      ServeStaticLambdaRole: {
         Type: 'AWS::IAM::Role',
         Properties: {
+          RoleName: `${this.serverless.service.service}-${this.stage}-servestatic-cfn-lambdarole`,
           AssumeRolePolicyDocument: {
             Version: '2012-10-17',
             Statement: [
@@ -120,59 +70,79 @@ class ServerlessServeStaticPlugin implements Plugin {
               },
             ],
           },
-          Policies: [
-            {
-              PolicyName: 'CustomResourcePolicy',
-              PolicyDocument: {
-                Version: '2012-10-17',
-                Statement: [
-                  {
-                    Effect: 'Allow',
-                    Action: [
-                      'logs:*',
-                      'lambda:CreateAlias',
-                      'lambda:UpdateAlias',
-                      'lambda:DeleteAlias',
-                      'lambda:ListAliases',
-                    ],
-                    Resource: '*',
-                  },
-                ],
-              },
-            },
+          ManagedPolicyArns: [
+            'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole',
+            'arn:aws:iam::aws:policy/AmazonS3FullAccess',
           ],
         },
       },
-      ...Object.entries(template.Resources)
-        .filter(([, resource]) => resource.Type === 'AWS::Lambda::Version')
-        .reduce(
-          (acc, [key, resource]) => {
-            const functionName = resource.Properties.FunctionName.Ref;
-            this.logging.log.info(
-              `Alias "${commitSha}" added for function "${functionName}"`,
-            );
-
-            return {
-              ...acc,
-              [`${functionName}ServeStaticAlias`]: {
-                Type: 'Custom::LambdaAlias',
-                Properties: {
-                  ServiceToken: {
-                    'Fn::GetAtt': [
-                      'CustomResourceHandlerLambdaFunction',
-                      'Arn',
-                    ],
-                  },
-                  FunctionName: { Ref: functionName },
-                  FunctionVersion: { 'Fn::GetAtt': [key, 'Version'] },
-                  AliasName: `version-${commitSha}`,
-                },
-              },
-            };
+      ServeStaticLambdaFunction: {
+        Type: 'AWS::Lambda::Function',
+        Properties: {
+          FunctionName: `cfn-servestatic-${this.serverless.service.service}-${this.stage}-resource`,
+          Description:
+            'A custom resource to deploy the static assets to the static assets bucket',
+          Runtime: 'nodejs20.x',
+          Architectures: ['arm64'],
+          MemorySize: 256,
+          Handler: 'index.handler',
+          Role: {
+            'Fn::GetAtt': ['ServeStaticLambdaRole', 'Arn'],
           },
-          {} as { [key: string]: object },
-        ),
+          Code: {
+            ZipFile: `${readFileSync(join(__dirname, 'lambda.js'), 'utf8')}`,
+          },
+          Timeout: 120,
+          Layers: [
+            'arn:aws:lambda:us-east-1:188628773952:layer:adm-zip-layer:7',
+          ],
+        },
+      },
+      ServeStaticAllowCloudfront: {
+        Type: 'AWS::CloudFront::OriginAccessControl',
+        Properties: {
+          OriginAccessControlConfig: {
+            Name: `${this.serverless.service.service}-${this.stage}-servestatic-oac`,
+            OriginAccessControlOriginType: 's3',
+            SigningBehavior: 'always',
+            SigningProtocol: 'sigv4',
+            Description: {
+              'Fn::Sub': 'OAI for S3 bucket ${ServeStaticAssetsBucket}',
+            },
+          },
+        },
+      },
+      [`StaticAssetsCustomResource`]: {
+        Type: 'Custom::UnzipResource',
+        Properties: {
+          ServiceToken: {
+            'Fn::GetAtt': ['ServeStaticLambdaFunction', 'Arn'],
+          },
+          SourceBucket: { Ref: 'ServerlessDeploymentBucket' },
+          SourceKeys: Object.entries(template.Resources)
+            .filter(([, resource]) => resource.Type === 'AWS::Lambda::Function')
+            .filter(
+              ([, resource]) =>
+                resource.Properties?.Code?.S3Bucket?.Ref ===
+                'ServerlessDeploymentBucket',
+            )
+            .map(([, resource]) => resource.Properties.Code.S3Key)
+            .reduce((acc: string[], key: string) => {
+              if (!acc.includes(key)) {
+                acc.push(key);
+              }
+              return acc;
+            }, [] satisfies string[]),
+          DestinationBucket: {
+            Ref: 'ServeStaticAssetsBucket',
+          },
+          IncludePatterns: this.settings.include || [],
+          ExcludePatterns: this.settings.exclude || [],
+        },
+      },
     };
+
+    this.logging.log.success('Added configuration to deploy static assets');
   }
 }
 
