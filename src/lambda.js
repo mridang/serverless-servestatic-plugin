@@ -36,8 +36,13 @@ exports.handler = async (event, context) => {
     return;
   }
 
-  const { SourceBucket, SourceKeys, DestinationBucket } =
+  const { SourceBucket, SourceKeys, DestinationBucket, IncludePatterns } =
     event.ResourceProperties;
+
+  if (!IncludePatterns?.length) {
+    throw new Error("No include patterns specified")
+  }
+
   const s3 = new S3Client({ region: event.ResourceProperties.CurrentRegion });
 
   try {
