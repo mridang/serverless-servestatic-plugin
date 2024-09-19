@@ -40,7 +40,7 @@ exports.handler = async (event, context) => {
     event.ResourceProperties;
 
   if (!IncludePatterns?.length) {
-    throw new Error("No include patterns specified")
+    throw new Error('No include patterns specified');
   }
 
   const s3 = new S3Client({ region: event.ResourceProperties.CurrentRegion });
