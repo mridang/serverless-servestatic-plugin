@@ -267,6 +267,7 @@ describe('plugin tests', () => {
             IgnorePublicAcls: false,
             RestrictPublicBuckets: false,
           },
+          VersioningConfiguration: 'Enabled',
         },
       },
       ServeStaticLambdaRole: {
@@ -299,7 +300,7 @@ describe('plugin tests', () => {
             'A custom resource to deploy the static assets to the static assets bucket',
           Runtime: 'nodejs20.x',
           Architectures: ['arm64'],
-          MemorySize: 256,
+          MemorySize: 512,
           Handler: 'index.handler',
           Role: {
             'Fn::GetAtt': ['ServeStaticLambdaRole', 'Arn'],
@@ -600,6 +601,7 @@ describe('plugin tests', () => {
             IgnorePublicAcls: true,
             RestrictPublicBuckets: true,
           },
+          VersioningConfiguration: 'Enabled',
         },
       },
       ServeStaticLambdaRole: {
@@ -632,7 +634,7 @@ describe('plugin tests', () => {
             'A custom resource to deploy the static assets to the static assets bucket',
           Runtime: 'nodejs20.x',
           Architectures: ['arm64'],
-          MemorySize: 256,
+          MemorySize: 512,
           Handler: 'index.handler',
           Role: {
             'Fn::GetAtt': ['ServeStaticLambdaRole', 'Arn'],
