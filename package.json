@@ -58,7 +58,7 @@
 		"@types/serverless": "^3.12.22",
 		"adm-zip": "^0.5.16",
 		"cfn-response": "^1.0.1",
-		"eslint": "^8.57.1",
+		"eslint": "^9.11.1",
 		"jest": "^29.7.0",
 		"log": "^6.3.1",
 		"mime-types": "^2.1.35",
