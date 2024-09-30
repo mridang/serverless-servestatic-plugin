@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import Serverless from 'serverless';
+// eslint-disable-next-line import/no-unresolved
 import Plugin, { Logging } from 'serverless/classes/Plugin';
 
 class ServerlessServeStaticPlugin implements Plugin {

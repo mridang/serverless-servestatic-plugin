@@ -39,7 +39,7 @@ exports.handler = async (event, context) => {
   const { SourceBucket, SourceKeys, DestinationBucket, IncludePatterns } =
     event.ResourceProperties;
 
-  if (!IncludePatterns?.length) {
+  if (!IncludePatterns || !IncludePatterns.length) {
     throw new Error('No include patterns specified');
   }
 
