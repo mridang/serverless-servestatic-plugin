@@ -1,15 +1,21 @@
-const { buffer } = require('node:stream/consumers');
-const {
+import { buffer } from 'node:stream/consumers';
+import {
   S3Client,
   GetObjectCommand,
   PutObjectCommand,
-} = require('@aws-sdk/client-s3');
-const AdmZip = require('adm-zip');
-const response = require('cfn-response');
-const { minimatch } = require('minimatch');
-const { lookup } = require('mime-types');
+} from '@aws-sdk/client-s3';
+import AdmZip from 'adm-zip';
+import response from 'cfn-response';
+import { minimatch } from 'minimatch';
+import { lookup } from 'mime-types';
+import lambda from 'aws-lambda';
+import { Readable } from 'node:stream';
 
-async function uploadFile(client, entry, bucket) {
+async function uploadFile(
+  client: S3Client,
+  entry: AdmZip.IZipEntry,
+  bucket: string,
+) {
   const destKey = `${['static', ...entry.entryName.split('/').slice(1)].join('/')}`;
   console.log(`Uploading ${entry.entryName} to s3://${bucket}/${destKey}`);
   return client
@@ -29,10 +35,23 @@ async function uploadFile(client, entry, bucket) {
     });
 }
 
-exports.handler = async (event, context) => {
+export const handler = async (
+  event: lambda.CloudFormationCustomResourceEvent & {
+    ResourceProperties: {
+      RequestType: string;
+      CurrentRegion: string;
+      SourceBucket: string;
+      SourceKeys: string[];
+      DestinationBucket: string;
+      IncludePatterns: string[];
+      ExcludePatterns: string[];
+    };
+  },
+  context: lambda.Context,
+) => {
   console.log(event);
   if (event.ResourceProperties.RequestType === 'Delete') {
-    await response.send(event, context, response.SUCCESS, undefined, 'ok');
+    response.send(event, context, response.SUCCESS, undefined, 'ok');
     return;
   }
 
@@ -58,7 +77,7 @@ exports.handler = async (event, context) => {
           `Unpacking assets from ZIP of ${zipObject.ContentLength} bytes`,
         );
 
-        const zipBuffer = await buffer(zipObject.Body);
+        const zipBuffer = await buffer(zipObject.Body as Readable);
 
         await Promise.race([
           Promise.all(
@@ -85,9 +104,9 @@ exports.handler = async (event, context) => {
     );
 
     console.log(`Sucessfully uploaded all the assets`);
-    await response.send(event, context, response.SUCCESS, undefined, 'ok');
+    response.send(event, context, response.SUCCESS, undefined, 'ok');
   } catch (error) {
     console.error(error);
-    await response.send(event, context, response.FAILED, undefined, 'ok');
+    response.send(event, context, response.FAILED, undefined, 'ok');
   }
 };

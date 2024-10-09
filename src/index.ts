@@ -92,7 +92,13 @@ class ServerlessServeStaticPlugin implements Plugin {
             'Fn::GetAtt': ['ServeStaticLambdaRole', 'Arn'],
           },
           Code: {
-            ZipFile: `${readFileSync(join(__dirname, 'lambda.js'), 'utf8')}`,
+            ZipFile: (() => {
+              try {
+                return readFileSync(join(__dirname, 'lambda.js'), 'utf8');
+              } catch {
+                return readFileSync(join(__dirname, 'lambda.ts'), 'utf8');
+              }
+            })(),
           },
           Timeout: 120,
           Layers: [
