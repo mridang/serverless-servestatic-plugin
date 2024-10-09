@@ -267,7 +267,9 @@ describe('plugin tests', () => {
             IgnorePublicAcls: false,
             RestrictPublicBuckets: false,
           },
-          VersioningConfiguration: 'Enabled',
+          VersioningConfiguration: {
+            Status: 'Enabled',
+          },
         },
       },
       ServeStaticLambdaRole: {
@@ -601,7 +603,9 @@ describe('plugin tests', () => {
             IgnorePublicAcls: true,
             RestrictPublicBuckets: true,
           },
-          VersioningConfiguration: 'Enabled',
+          VersioningConfiguration: {
+            Status: 'Enabled',
+          },
         },
       },
       ServeStaticLambdaRole: {

@@ -53,7 +53,9 @@ class ServerlessServeStaticPlugin implements Plugin {
             IgnorePublicAcls: this.settings.public === false,
             RestrictPublicBuckets: this.settings.public === false,
           },
-          VersioningConfiguration: 'Enabled',
+          VersioningConfiguration: {
+            Status: 'Enabled',
+          },
         },
       },
       ServeStaticLambdaRole: {
