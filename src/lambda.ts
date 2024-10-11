@@ -51,7 +51,7 @@ export const handler = async (
 ) => {
   console.log(event);
   if (event.ResourceProperties.RequestType === 'Delete') {
-    response.send(event, context, response.SUCCESS, undefined, 'ok');
+    await response.send(event, context, response.SUCCESS, undefined, 'ok');
     return;
   }
 
@@ -104,9 +104,9 @@ export const handler = async (
     );
 
     console.log(`Sucessfully uploaded all the assets`);
-    response.send(event, context, response.SUCCESS, undefined, 'ok');
+    await response.send(event, context, response.SUCCESS, undefined, 'ok');
   } catch (error) {
     console.error(error);
-    response.send(event, context, response.FAILED, undefined, 'ok');
+    await response.send(event, context, response.FAILED, undefined, 'ok');
   }
 };
