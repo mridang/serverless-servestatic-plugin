@@ -62,6 +62,7 @@
 		"cfn-response": "^1.0.1",
 		"eslint": "^8.57.1",
 		"jest": "^29.7.0",
+		"knip": "^5.43.6",
 		"log": "^6.3.1",
 		"mime-types": "^2.1.35",
 		"minimatch": "^10.0.1",
