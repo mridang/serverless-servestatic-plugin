@@ -1,8 +1,12 @@
 import { readFileSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import Serverless from 'serverless';
 // eslint-disable-next-line import/no-unresolved
 import Plugin, { Logging } from 'serverless/classes/Plugin';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 class ServerlessServeStaticPlugin implements Plugin {
   public readonly hooks: Plugin.Hooks = {};
@@ -156,4 +160,4 @@ class ServerlessServeStaticPlugin implements Plugin {
   }
 }
 
-export = ServerlessServeStaticPlugin;
+export default ServerlessServeStaticPlugin;
