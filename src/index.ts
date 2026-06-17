@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import Serverless from 'serverless';
-// eslint-disable-next-line import/no-unresolved
+
 import Plugin, { Logging } from 'serverless/classes/Plugin';
 
 const __filename = fileURLToPath(import.meta.url);
