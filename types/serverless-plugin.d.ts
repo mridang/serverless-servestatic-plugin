@@ -21,8 +21,7 @@ declare module 'serverless/classes/Plugin' {
     commands?: Plugin.Commands | undefined;
     variableResolvers?: Plugin.VariableResolvers | undefined;
     configurationVariablesSources?:
-      | Plugin.ConfigurationVariablesSources
-      | undefined;
+      Plugin.ConfigurationVariablesSources | undefined;
     provider?:
       | string
       | ReturnType<InstanceType<typeof Serverless>['getProvider']>
