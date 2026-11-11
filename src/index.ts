@@ -1,12 +1,11 @@
-import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import Serverless from 'serverless';
 
 import Plugin, { Logging } from 'serverless/classes/Plugin';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __filename = import.meta.filename;
+const __dirname = import.meta.dirname;
 
 class ServerlessServeStaticPlugin implements Plugin {
   public readonly hooks: Plugin.Hooks = {};

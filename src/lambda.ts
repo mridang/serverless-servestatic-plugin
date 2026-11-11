@@ -58,7 +58,7 @@ export const handler = async (
   const { SourceBucket, SourceKeys, DestinationBucket, IncludePatterns } =
     event.ResourceProperties;
 
-  if (!IncludePatterns || !IncludePatterns.length) {
+  if (!IncludePatterns || IncludePatterns.length === 0) {
     throw new Error('No include patterns specified');
   }
 
@@ -97,7 +97,7 @@ export const handler = async (
               .map((entry) => uploadFile(s3, entry, DestinationBucket)),
           ),
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Operation timed out')), 180000),
+            setTimeout(() => reject(new Error('Operation timed out')), 180_000),
           ),
         ]);
       }),
