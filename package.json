@@ -45,7 +45,7 @@
   "bugs": "https://github.com/mridang/serverless-servestatic-plugin/issues",
   "devDependencies": {
     "@eslint/compat": "^2.1.1",
-    "@mridang/eslint-defaults": "^1.7.0",
+    "@mridang/eslint-defaults": "file:../../pack/mridang-eslint-defaults-2.0.1.tgz",
     "@semantic-release/commit-analyzer": "^13.0.1",
     "@semantic-release/git": "^11.0.1",
     "@semantic-release/github": "^12.0.10",
@@ -70,10 +70,13 @@
     "semantic-release": "^25.0.9",
     "serverless": "^4.46.0",
     "ts-jest": "^29.4.15",
-    "typescript": "^6.0.3"
+    "typescript": "~6.0.3"
   },
   "publishConfig": {
     "access": "public"
   },
-  "version": "1.7.1"
+  "version": "1.7.1",
+  "overrides": {
+    "@eslint/core": "1.2.1"
+  }
 }
