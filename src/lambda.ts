@@ -1,3 +1,6 @@
+/**
+ * @file Custom resource handler that copies the static assets from the deployment bucket into the assets bucket.
+ */
 import { buffer } from 'node:stream/consumers';
 import {
   S3Client,
@@ -11,28 +14,42 @@ import { lookup } from 'mime-types';
 import lambda from 'aws-lambda';
 import { Readable } from 'node:stream';
 
+/**
+ * Uploads a single zip entry to the static assets bucket with a content type inferred from its name.
+ *
+ * Failures are logged rather than thrown, so one bad asset does not abort the rest of the deployment.
+ * @param client - The S3 client used to send the upload request.
+ * @param entry - The zip entry whose contents are uploaded.
+ * @param bucket - The name of the destination bucket.
+ * @returns A promise that resolves once the upload has finished or its failure has been logged.
+ * @example
+ * ```ts
+ * const zip = new AdmZip(zipBuffer);
+ * await uploadFile(new S3Client({ region: 'us-east-1' }), zip.getEntries()[0], 'assets-bucket');
+ * ```
+ */
 async function uploadFile(
   client: S3Client,
   entry: AdmZip.IZipEntry,
   bucket: string,
-) {
+): Promise<void> {
   const destKey = `${['static', ...entry.entryName.split('/').slice(1)].join('/')}`;
   console.log(`Uploading ${entry.entryName} to s3://${bucket}/${destKey}`);
-  return client
-    .send(
-      new PutObjectCommand({
-        Bucket: bucket,
-        Key: destKey,
-        Body: entry.getData(),
-        ContentType: lookup(entry.entryName) || 'application/octet-stream',
-      }),
-    )
-    .then(() => {
-      console.log(`Uploaded ${entry.entryName} successfully`);
-    })
-    .catch((error) => {
-      console.error(`Failed to upload ${entry.entryName}:`, error.message);
-    });
+  const command = new PutObjectCommand({
+    Bucket: bucket,
+    Key: destKey,
+    Body: entry.getData(),
+    ContentType: lookup(entry.entryName) || 'application/octet-stream',
+  });
+  try {
+    await client.send(command);
+    console.log(`Uploaded ${entry.entryName} successfully`);
+  } catch (error) {
+    console.error(
+      `Failed to upload ${entry.entryName}:`,
+      (error as Error).message,
+    );
+  }
 }
 
 export const handler = async (
@@ -55,14 +72,19 @@ export const handler = async (
     return;
   }
 
-  const { SourceBucket, SourceKeys, DestinationBucket, IncludePatterns } =
-    event.ResourceProperties;
+  const {
+    SourceBucket,
+    SourceKeys,
+    DestinationBucket,
+    IncludePatterns,
+    CurrentRegion,
+  } = event.ResourceProperties;
 
-  if (!IncludePatterns || !IncludePatterns.length) {
+  if (!IncludePatterns || IncludePatterns.length === 0) {
     throw new Error('No include patterns specified');
   }
 
-  const s3 = new S3Client({ region: event.ResourceProperties.CurrentRegion });
+  const s3 = new S3Client({ region: CurrentRegion });
 
   try {
     await Promise.all(
@@ -96,8 +118,8 @@ export const handler = async (
               })
               .map((entry) => uploadFile(s3, entry, DestinationBucket)),
           ),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Operation timed out')), 180000),
+          new Promise((_resolve, reject) =>
+            setTimeout(() => reject(new Error('Operation timed out')), 180_000),
           ),
         ]);
       }),

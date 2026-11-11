@@ -1,31 +1,32 @@
-// Ambient module shims for `serverless/...` subpaths.
-//
-// The `serverless` npm package does not declare an `exports` map that exposes
-// its internal subpaths, so under TypeScript's `nodenext` module resolution
-// imports like `serverless/classes/Plugin` cannot be resolved even though
-// `@types/serverless` ships the corresponding `.d.ts` files. These shims
-// re-declare the small surface of those subpaths that the codebase actually
-// uses so the existing imports in `src/index.ts` continue to type-check
-// without resorting to `require()`-style imports.
-//
-// The shape mirrors the relevant parts of the `@types/serverless`
-// declarations (which themselves use CommonJS `export =` with interface +
-// namespace merging). Keeping the surface inline avoids referencing the
-// `@types/...` paths directly, which TypeScript's `nodenext` resolution
-// rejects (`TS6137`).
+/**
+ * @file Ambient module declarations for the `serverless` package subpaths used by the plugin.
+ *
+ * These are ambient module shims for `serverless/...` subpaths.
+ *
+ * The `serverless` npm package does not declare an `exports` map that exposes
+ * its internal subpaths, so under TypeScript's `nodenext` module resolution
+ * imports like `serverless/classes/Plugin` cannot be resolved even though
+ * `@types/serverless` ships the corresponding `.d.ts` files. These shims
+ * re-declare the small surface of those subpaths that the codebase actually
+ * uses so the existing imports in `src/index.ts` continue to type-check
+ * without resorting to `require()`-style imports.
+ *
+ * The shape mirrors the relevant parts of the `@types/serverless`
+ * declarations (which themselves use CommonJS `export =` with interface +
+ * namespace merging). Keeping the surface inline avoids referencing the
+ * `@types/...` paths directly, which TypeScript's `nodenext` resolution
+ * rejects (`TS6137`).
+ */
 declare module 'serverless/classes/Plugin' {
   import type Serverless from 'serverless';
 
   interface Plugin {
     hooks: Plugin.Hooks;
-    commands?: Plugin.Commands | undefined;
-    variableResolvers?: Plugin.VariableResolvers | undefined;
-    configurationVariablesSources?:
-      Plugin.ConfigurationVariablesSources | undefined;
+    commands?: Plugin.Commands;
+    variableResolvers?: Plugin.VariableResolvers;
+    configurationVariablesSources?: Plugin.ConfigurationVariablesSources;
     provider?:
-      | string
-      | ReturnType<InstanceType<typeof Serverless>['getProvider']>
-      | undefined;
+      string | ReturnType<InstanceType<typeof Serverless>['getProvider']>;
   }
 
   namespace Plugin {
@@ -35,33 +36,29 @@ declare module 'serverless/classes/Plugin' {
 
     interface Commands {
       [command: string]: {
-        usage?: string | undefined;
-        lifecycleEvents?: string[] | undefined;
-        commands?:
-          | {
-              [command: string]: {
-                lifecycleEvents?: string[];
-                usage?: string;
-                options?: {
-                  [option: string]: {
-                    usage?: string | undefined;
-                    required?: boolean | undefined;
-                    shortcut?: string | undefined;
-                    type: 'string' | 'boolean' | 'multiple';
-                  };
-                };
-              };
-            }
-          | undefined;
-        options?:
-          | {
+        usage?: string;
+        lifecycleEvents?: string[];
+        commands?: {
+          [command: string]: {
+            lifecycleEvents?: string[];
+            usage?: string;
+            options?: {
               [option: string]: {
-                usage?: string | undefined;
-                required?: boolean | undefined;
-                shortcut?: string | undefined;
+                usage?: string;
+                required?: boolean;
+                shortcut?: string;
+                type: 'string' | 'boolean' | 'multiple';
               };
-            }
-          | undefined;
+            };
+          };
+        };
+        options?: {
+          [option: string]: {
+            usage?: string;
+            required?: boolean;
+            shortcut?: string;
+          };
+        };
       };
     }
 
@@ -72,8 +69,8 @@ declare module 'serverless/classes/Plugin' {
         | VariableResolver
         | {
             resolver: VariableResolver;
-            isDisabledAtPrepopulation?: boolean | undefined;
-            serviceName?: string | undefined;
+            isDisabledAtPrepopulation?: boolean;
+            serviceName?: string;
           };
     }
 
@@ -86,8 +83,8 @@ declare module 'serverless/classes/Plugin' {
         | ConfigurationVariablesSource
         | {
             resolve: ConfigurationVariablesSource;
-            isDisabledAtPrepopulation?: boolean | undefined;
-            serviceName?: string | undefined;
+            isDisabledAtPrepopulation?: boolean;
+            serviceName?: string;
           };
     }
 
@@ -148,9 +145,9 @@ declare module 'serverless/plugins/aws/provider/awsProvider' {
         Tags?: Array<{ Key: string; Value: string }>;
         [key: string]: unknown;
       };
-      DependsOn?: string | { [key: string]: unknown } | undefined;
-      Condition?: string | undefined;
-      DeletionPolicy?: string | undefined;
+      DependsOn?: string | { [key: string]: unknown };
+      Condition?: string;
+      DeletionPolicy?: string;
     }
 
     interface CloudFormationResources {
