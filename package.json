@@ -44,6 +44,7 @@
   "homepage": "https://github.com/mridang/serverless-servestatic-plugin",
   "bugs": "https://github.com/mridang/serverless-servestatic-plugin/issues",
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.658.0",
     "@eslint/compat": "^2.1.1",
     "@mridang/eslint-defaults": "file:../../pack/mridang-eslint-defaults-2.0.1.tgz",
     "@semantic-release/commit-analyzer": "^13.0.1",
@@ -78,5 +79,13 @@
   "version": "1.7.1",
   "overrides": {
     "@eslint/core": "1.2.1"
+  },
+  "sideEffects": true,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
   }
 }
