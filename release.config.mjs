@@ -1,7 +1,11 @@
+/**
+ * @file Semantic release configuration that publishes the package to npm and GitHub.
+ */
 import { readFileSync } from 'node:fs';
 
 const packageJson = JSON.parse(
-  readFileSync(new URL('package.json', import.meta.url), 'utf-8'),
+  // eslint-disable-next-line n/no-sync -- sync is fine in a script/bootstrap
+  readFileSync(new URL('package.json', import.meta.url), 'utf8'),
 );
 
 export default {

@@ -1,3 +1,6 @@
+/**
+ * @file Jest configuration for TypeScript ESM tests with coverage and JUnit reporting.
+ */
 export default {
   preset: 'ts-jest/presets/default-esm',
   transform: {

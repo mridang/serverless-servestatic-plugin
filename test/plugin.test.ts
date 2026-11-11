@@ -1,7 +1,20 @@
+/**
+ * @file Unit tests for the serverless static plugin deploy hook and its generated CloudFormation resources.
+ */
 import ServerlessServeStaticPlugin from '../src/index';
 
 type Ctor = ConstructorParameters<typeof ServerlessServeStaticPlugin>;
 
+/**
+ * Builds a plugin instance backed by an in-memory Serverless service with two Lambda functions.
+ * @param custom - The optional `custom` block of the service, such as the `servestatic` settings.
+ * @returns The `run` function that executes the deploy hook and resolves the generated resources, and the messages logged during the run.
+ * @example
+ * ```ts
+ * const { run, success } = createPlugin({ servestatic: { public: false } });
+ * const resources = await run();
+ * ```
+ */
 function createPlugin(custom?: Record<string, unknown>) {
   const serverless = {
     service: {
@@ -42,11 +55,11 @@ function createPlugin(custom?: Record<string, unknown>) {
     logging as unknown as Ctor[2],
     {},
   );
-  const run = () => {
-    (
+  const run = async () => {
+    await (
       plugin.hooks[
         'after:aws:package:finalize:mergeCustomProviderResources'
-      ] as () => void
+      ] as () => Promise<void>
     )();
     return serverless.service.provider.compiledCloudFormationTemplate
       .Resources as Record<
@@ -58,10 +71,10 @@ function createPlugin(custom?: Record<string, unknown>) {
 }
 
 describe('plugin tests', () => {
-  it('should add the static assets resources with the defaults', () => {
+  it('should add the static assets resources with the defaults', async () => {
     const { run, success } = createPlugin();
 
-    const resources = run();
+    const resources = await run();
 
     expect(resources.ServeStaticAssetsBucket.Type).toBe('AWS::S3::Bucket');
     expect(resources.ServeStaticAssetsBucket.Properties).toEqual(
@@ -91,7 +104,7 @@ describe('plugin tests', () => {
     expect(success).toEqual(['Added configuration to deploy static assets']);
   });
 
-  it('should handle the supplied configuration', () => {
+  it('should handle the supplied configuration', async () => {
     const { run } = createPlugin({
       servestatic: {
         include: ['public/**/*'],
@@ -100,7 +113,7 @@ describe('plugin tests', () => {
       },
     });
 
-    const resources = run();
+    const resources = await run();
 
     expect(resources.ServeStaticAssetsBucket.Properties).toEqual(
       expect.objectContaining({

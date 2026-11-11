@@ -1,11 +1,29 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+/**
+ * @file Serverless Framework plugin that provisions an S3 bucket and a custom resource that publishes static assets to it.
+ */
+import { readFile } from 'node:fs/promises';
 import Serverless from 'serverless';
 
 import Plugin, { Logging } from 'serverless/classes/Plugin';
 
-const __filename = import.meta.filename;
-const __dirname = import.meta.dirname;
+/**
+ * Reads the source of the custom resource handler so it can be inlined into the CloudFormation template.
+ *
+ * The compiled `lambda.js` is preferred, and the TypeScript source `lambda.ts` is used when the package has not been built.
+ * @returns A promise that resolves to the handler source as UTF-8 text.
+ * @throws {Error} When neither `lambda.js` nor `lambda.ts` can be read.
+ * @example
+ * ```ts
+ * const zipFile = await readLambdaSource();
+ * ```
+ */
+async function readLambdaSource(): Promise<string> {
+  try {
+    return await readFile(new URL('lambda.js', import.meta.url), 'utf8');
+  } catch {
+    return readFile(new URL('lambda.ts', import.meta.url), 'utf8');
+  }
+}
 
 class ServerlessServeStaticPlugin implements Plugin {
   public readonly hooks: Plugin.Hooks = {};
@@ -31,7 +49,8 @@ class ServerlessServeStaticPlugin implements Plugin {
     this.settings = this.serverless.service.custom?.servestatic || {};
   }
 
-  deployStatic() {
+  async deployStatic() {
+    const zipFile = await readLambdaSource();
     const template =
       this.serverless.service.provider.compiledCloudFormationTemplate;
 
@@ -97,13 +116,7 @@ class ServerlessServeStaticPlugin implements Plugin {
             'Fn::GetAtt': ['ServeStaticLambdaRole', 'Arn'],
           },
           Code: {
-            ZipFile: (() => {
-              try {
-                return readFileSync(join(__dirname, 'lambda.js'), 'utf8');
-              } catch {
-                return readFileSync(join(__dirname, 'lambda.ts'), 'utf8');
-              }
-            })(),
+            ZipFile: zipFile,
           },
           Timeout: 120,
           Layers: [
