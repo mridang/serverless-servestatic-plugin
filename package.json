@@ -76,7 +76,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "version": "1.7.1",
+  "version": "1.7.2",
   "overrides": {
     "@eslint/core": "1.2.1"
   },
