@@ -33,11 +33,13 @@ async function uploadFile(
   entry: AdmZip.IZipEntry,
   bucket: string,
 ): Promise<void> {
-  const destKey = `${['static', ...entry.entryName.split('/').slice(1)].join('/')}`;
-  console.log(`Uploading ${entry.entryName} to s3://${bucket}/${destKey}`);
+  const destinationKey = `${['static', ...entry.entryName.split('/').slice(1)].join('/')}`;
+  console.log(
+    `Uploading ${entry.entryName} to s3://${bucket}/${destinationKey}`,
+  );
   const command = new PutObjectCommand({
     Bucket: bucket,
-    Key: destKey,
+    Key: destinationKey,
     Body: entry.getData(),
     ContentType: lookup(entry.entryName) || 'application/octet-stream',
   });
