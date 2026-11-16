@@ -1,7 +1,7 @@
 /**
  * @file Unit tests for the serverless static plugin deploy hook and its generated CloudFormation resources.
  */
-import ServerlessServeStaticPlugin from '../src/index';
+import ServerlessServeStaticPlugin from '../src/index.js';
 
 type Ctor = ConstructorParameters<typeof ServerlessServeStaticPlugin>;
 
@@ -51,7 +51,7 @@ function createPlugin(custom?: Record<string, unknown>) {
   const logging = { log: { success: (line: string) => success.push(line) } };
   const plugin = new ServerlessServeStaticPlugin(
     serverless as unknown as Ctor[0],
-    {} as Ctor[1],
+    {},
     logging as unknown as Ctor[2],
     {},
   );
@@ -90,7 +90,7 @@ describe('plugin tests', () => {
     expect(resources.ServeStaticLambdaFunction.Properties).toEqual(
       expect.objectContaining({
         FunctionName: 'cfn-servestatic-simple-service-dev-resource',
-        Code: { ZipFile: expect.any(String) },
+        Code: { ZipFile: expect.any(String) as string },
       }),
     );
     expect(resources.StaticAssetsCustomResource.Properties).toEqual(
