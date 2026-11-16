@@ -2,9 +2,10 @@
  * @file Serverless Framework plugin that provisions an S3 bucket and a custom resource that publishes static assets to it.
  */
 import { readFile } from 'node:fs/promises';
-import Serverless from 'serverless';
+import type Serverless from 'serverless';
 
-import Plugin, { Logging } from 'serverless/classes/Plugin';
+import type { Logging } from 'serverless/classes/Plugin';
+import type Plugin from 'serverless/classes/Plugin';
 
 /**
  * Reads the source of the custom resource handler so it can be inlined into the CloudFormation template.
@@ -25,6 +26,21 @@ async function readLambdaSource(): Promise<string> {
   }
 }
 
+/** The `servestatic` block of the service's `custom` section. */
+interface ServeStaticSettings {
+  include?: string[];
+  exclude?: string[];
+  public?: boolean;
+}
+
+/** The part of a CloudFormation resource that names the Lambda code it deploys from. */
+interface ResourceWithCode {
+  Type: string;
+  Properties?: {
+    Code?: { S3Bucket?: { Ref?: string }; S3Key?: string };
+  };
+}
+
 class ServerlessServeStaticPlugin implements Plugin {
   public readonly hooks: Plugin.Hooks = {};
   public readonly name: string = 'serverless-servestatic-plugin';
@@ -34,11 +50,7 @@ class ServerlessServeStaticPlugin implements Plugin {
     private readonly serverless: Serverless,
     private readonly options: Serverless.Options,
     private readonly logging: Logging,
-    private readonly settings: {
-      include?: string[];
-      exclude?: string[];
-      public?: boolean;
-    },
+    private readonly settings: ServeStaticSettings,
   ) {
     this.hooks = {
       'after:aws:package:finalize:mergeCustomProviderResources':
@@ -46,7 +58,9 @@ class ServerlessServeStaticPlugin implements Plugin {
     };
     this.stage =
       this.serverless.service.provider.stage || this.options.stage || 'dev';
-    this.settings = this.serverless.service.custom?.servestatic || {};
+    this.settings =
+      (this.serverless.service.custom?.servestatic as
+        ServeStaticSettings | undefined) || {};
   }
 
   async deployStatic() {
@@ -145,14 +159,17 @@ class ServerlessServeStaticPlugin implements Plugin {
             'Fn::GetAtt': ['ServeStaticLambdaFunction', 'Arn'],
           },
           SourceBucket: { Ref: 'ServerlessDeploymentBucket' },
-          SourceKeys: Object.entries(template.Resources)
+          SourceKeys: Object.entries(
+            template.Resources as Record<string, ResourceWithCode>,
+          )
             .filter(([, resource]) => resource.Type === 'AWS::Lambda::Function')
             .filter(
               ([, resource]) =>
                 resource.Properties?.Code?.S3Bucket?.Ref ===
                 'ServerlessDeploymentBucket',
             )
-            .map(([, resource]) => resource.Properties.Code.S3Key)
+            .map(([, resource]) => resource.Properties?.Code?.S3Key)
+            .filter((key): key is string => key !== undefined)
             .reduce((acc: string[], key: string) => {
               if (!acc.includes(key)) {
                 acc.push(key);

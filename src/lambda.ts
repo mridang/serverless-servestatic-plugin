@@ -11,8 +11,8 @@ import AdmZip from 'adm-zip';
 import response from 'cfn-response';
 import { minimatch } from 'minimatch';
 import { lookup } from 'mime-types';
-import lambda from 'aws-lambda';
-import { Readable } from 'node:stream';
+import type lambda from 'aws-lambda';
+import type { Readable } from 'node:stream';
 
 /**
  * Uploads a single zip entry to the static assets bucket with a content type inferred from its name.
@@ -33,7 +33,10 @@ async function uploadFile(
   entry: AdmZip.IZipEntry,
   bucket: string,
 ): Promise<void> {
-  const destinationKey = `${['static', ...entry.entryName.split('/').slice(1)].join('/')}`;
+  const destinationKey = [
+    'static',
+    ...entry.entryName.split('/').slice(1),
+  ].join('/');
   console.log(
     `Uploading ${entry.entryName} to s3://${bucket}/${destinationKey}`,
   );
@@ -70,7 +73,7 @@ export const handler = async (
 ) => {
   console.log(event);
   if (event.ResourceProperties.RequestType === 'Delete') {
-    await response.send(event, context, response.SUCCESS, undefined, 'ok');
+    response.send(event, context, response.SUCCESS, undefined, 'ok');
     return;
   }
 
@@ -118,7 +121,7 @@ export const handler = async (
                 );
                 return isIncluded && !isExcluded;
               })
-              .map((entry) => uploadFile(s3, entry, DestinationBucket)),
+              .map(async (entry) => uploadFile(s3, entry, DestinationBucket)),
           ),
           new Promise((_resolve, reject) =>
             setTimeout(() => reject(new Error('Operation timed out')), 180_000),
@@ -128,9 +131,9 @@ export const handler = async (
     );
 
     console.log(`Sucessfully uploaded all the assets`);
-    await response.send(event, context, response.SUCCESS, undefined, 'ok');
+    response.send(event, context, response.SUCCESS, undefined, 'ok');
   } catch (error) {
     console.error(error);
-    await response.send(event, context, response.FAILED, undefined, 'ok');
+    response.send(event, context, response.FAILED, undefined, 'ok');
   }
 };

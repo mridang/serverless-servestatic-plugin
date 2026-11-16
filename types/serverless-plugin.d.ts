@@ -114,13 +114,11 @@ declare module 'serverless/classes/Plugin' {
       remove: () => void;
     }
 
-    interface PluginStatic {
-      new (
-        serverless: Serverless,
-        options: Serverless.Options,
-        logging: Logging,
-      ): Plugin;
-    }
+    type PluginStatic = new (
+      serverless: Serverless,
+      options: Serverless.Options,
+      logging: Logging,
+    ) => Plugin;
   }
 
   export default Plugin;
