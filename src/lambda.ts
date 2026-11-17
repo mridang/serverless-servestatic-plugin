@@ -123,9 +123,9 @@ export const handler = async (
               })
               .map(async (entry) => uploadFile(s3, entry, DestinationBucket)),
           ),
-          new Promise((_resolve, reject) =>
-            setTimeout(() => reject(new Error('Operation timed out')), 180_000),
-          ),
+          new Promise((_resolve, reject) => {
+            setTimeout(() => reject(new Error('Operation timed out')), 180_000);
+          }),
         ]);
       }),
     );
