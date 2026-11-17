@@ -2,8 +2,16 @@
  * @file Unit tests for the serverless static plugin deploy hook and its generated CloudFormation resources.
  */
 import ServerlessServeStaticPlugin from '../src/index.js';
+import type Plugin from 'serverless/classes/Plugin';
 
 type Ctor = ConstructorParameters<typeof ServerlessServeStaticPlugin>;
+
+interface CompiledTemplate {
+  Resources: Record<
+    string,
+    { Type: string; Properties: Record<string, unknown> }
+  >;
+}
 
 /**
  * Builds a plugin instance backed by an in-memory Serverless service with two Lambda functions.
@@ -16,56 +24,73 @@ type Ctor = ConstructorParameters<typeof ServerlessServeStaticPlugin>;
  * ```
  */
 function createPlugin(custom?: Record<string, unknown>) {
+  const noop = () => undefined;
+  const progress: Plugin.Progress = {
+    namespace: 'test',
+    name: 'test',
+    update: noop,
+    info: noop,
+    notice: noop,
+    remove: noop,
+  };
+  const template: CompiledTemplate = {
+    Resources: {
+      FooLambdaFunction: {
+        Type: 'AWS::Lambda::Function',
+        Properties: {
+          Code: {
+            S3Bucket: { Ref: 'ServerlessDeploymentBucket' },
+            S3Key: 'serverless/foo.zip',
+          },
+        },
+      },
+      BarLambdaFunction: {
+        Type: 'AWS::Lambda::Function',
+        Properties: {
+          Code: {
+            S3Bucket: { Ref: 'ServerlessDeploymentBucket' },
+            S3Key: 'serverless/foo.zip',
+          },
+        },
+      },
+    },
+  };
   const serverless = {
     service: {
       service: 'simple-service',
       custom,
       provider: {
         stage: 'dev',
-        compiledCloudFormationTemplate: {
-          Resources: {
-            FooLambdaFunction: {
-              Type: 'AWS::Lambda::Function',
-              Properties: {
-                Code: {
-                  S3Bucket: { Ref: 'ServerlessDeploymentBucket' },
-                  S3Key: 'serverless/foo.zip',
-                },
-              },
-            },
-            BarLambdaFunction: {
-              Type: 'AWS::Lambda::Function',
-              Properties: {
-                Code: {
-                  S3Bucket: { Ref: 'ServerlessDeploymentBucket' },
-                  S3Key: 'serverless/foo.zip',
-                },
-              },
-            },
-          },
-        },
+        compiledCloudFormationTemplate: template,
       },
     },
   };
   const success: string[] = [];
-  const logging = { log: { success: (line: string) => success.push(line) } };
+  const logging: Plugin.Logging = {
+    log: {
+      error: noop,
+      warning: noop,
+      notice: noop,
+      info: noop,
+      debug: noop,
+      verbose: noop,
+      success: (line: unknown) => success.push(String(line)),
+    },
+    writeText: noop,
+    progress: { get: () => progress, create: () => progress },
+  };
   const plugin = new ServerlessServeStaticPlugin(
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- a full Serverless instance needs a real service load; the plugin reads only the service name, custom section and provider
     serverless as unknown as Ctor[0],
     {},
-    logging as unknown as Ctor[2],
+    logging,
     {},
   );
   const run = async () => {
-    await (
-      plugin.hooks[
-        'after:aws:package:finalize:mergeCustomProviderResources'
-      ] as () => Promise<void>
-    )();
-    return serverless.service.provider.compiledCloudFormationTemplate
-      .Resources as Record<
-      string,
-      { Type: string; Properties: Record<string, unknown> }
-    >;
+    await plugin.hooks[
+      'after:aws:package:finalize:mergeCustomProviderResources'
+    ]();
+    return template.Resources;
   };
   return { run, success };
 }
@@ -90,8 +115,11 @@ describe('plugin tests', () => {
     expect(resources.ServeStaticLambdaFunction.Properties).toEqual(
       expect.objectContaining({
         FunctionName: 'cfn-servestatic-simple-service-dev-resource',
-        Code: { ZipFile: expect.any(String) as string },
       }),
+    );
+    expect(resources.ServeStaticLambdaFunction.Properties.Code).toHaveProperty(
+      'ZipFile',
+      expect.any(String),
     );
     expect(resources.StaticAssetsCustomResource.Properties).toEqual(
       expect.objectContaining({

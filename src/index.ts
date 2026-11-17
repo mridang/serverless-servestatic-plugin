@@ -32,6 +32,29 @@ interface ServeStaticSettings {
   public?: boolean;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((item) => typeof item === 'string');
+
+/**
+ * Reads the `servestatic` block of the service's `custom` section, keeping only well-typed fields.
+ * @param custom - The untyped `custom` section of the service.
+ * @returns The settings that were present with the expected type.
+ */
+function parseSettings(custom: unknown): ServeStaticSettings {
+  if (!isRecord(custom) || !isRecord(custom.servestatic)) {
+    return {};
+  }
+  const { include, exclude, public: isPublic } = custom.servestatic;
+  return {
+    ...(isStringArray(include) ? { include } : {}),
+    ...(isStringArray(exclude) ? { exclude } : {}),
+    ...(typeof isPublic === 'boolean' ? { public: isPublic } : {}),
+  };
+}
+
 /** The part of a CloudFormation resource that names the Lambda code it deploys from. */
 interface ResourceWithCode {
   Type: string;
@@ -57,9 +80,8 @@ class ServerlessServeStaticPlugin implements Plugin {
     };
     this.stage =
       this.serverless.service.provider.stage || this.options.stage || 'dev';
-    this.settings =
-      (this.serverless.service.custom?.servestatic as
-        ServeStaticSettings | undefined) || {};
+    const custom: unknown = this.serverless.service.custom;
+    this.settings = parseSettings(custom);
   }
 
   async deployStatic() {
@@ -175,8 +197,8 @@ class ServerlessServeStaticPlugin implements Plugin {
           DestinationBucket: {
             Ref: 'ServeStaticAssetsBucket',
           },
-          IncludePatterns: this.settings.include || [],
-          ExcludePatterns: this.settings.exclude || [],
+          IncludePatterns: this.settings.include ?? [],
+          ExcludePatterns: this.settings.exclude ?? [],
         },
       },
     };
