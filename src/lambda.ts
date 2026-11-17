@@ -2,6 +2,7 @@
  * @file Custom resource handler that copies the static assets from the deployment bucket into the assets bucket.
  */
 import { buffer } from 'node:stream/consumers';
+import { Readable } from 'node:stream';
 import {
   S3Client,
   GetObjectCommand,
@@ -12,7 +13,6 @@ import response from 'cfn-response';
 import { minimatch } from 'minimatch';
 import { lookup } from 'mime-types';
 import type lambda from 'aws-lambda';
-import type { Readable } from 'node:stream';
 
 /**
  * Uploads a single zip entry to the static assets bucket with a content type inferred from its name.
@@ -52,7 +52,7 @@ async function uploadFile(
   } catch (error) {
     console.error(
       `Failed to upload ${entry.entryName}:`,
-      (error as Error).message,
+      error instanceof Error ? error.message : String(error),
     );
   }
 }
@@ -65,8 +65,8 @@ export const handler = async (
       SourceBucket: string;
       SourceKeys: string[];
       DestinationBucket: string;
-      IncludePatterns: string[];
-      ExcludePatterns: string[];
+      IncludePatterns?: string[];
+      ExcludePatterns?: string[];
     };
   },
   context: lambda.Context,
@@ -82,6 +82,7 @@ export const handler = async (
     SourceKeys,
     DestinationBucket,
     IncludePatterns,
+    ExcludePatterns,
     CurrentRegion,
   } = event.ResourceProperties;
 
@@ -104,19 +105,20 @@ export const handler = async (
           `Unpacking assets from ZIP of ${zipObject.ContentLength} bytes`,
         );
 
-        const zipBuffer = await buffer(zipObject.Body as Readable);
+        if (!(zipObject.Body instanceof Readable)) {
+          throw new TypeError(`No readable body for ${sourceKey}`);
+        }
+        const zipBuffer = await buffer(zipObject.Body);
 
         await Promise.race([
           Promise.all(
             new AdmZip(zipBuffer)
               .getEntries()
               .filter((entry) => {
-                const { IncludePatterns, ExcludePatterns } =
-                  event.ResourceProperties;
-                const isIncluded = (IncludePatterns || []).some((pattern) =>
+                const isIncluded = IncludePatterns.some((pattern) =>
                   minimatch(entry.entryName, pattern),
                 );
-                const isExcluded = (ExcludePatterns || []).some((pattern) =>
+                const isExcluded = (ExcludePatterns ?? []).some((pattern) =>
                   minimatch(entry.entryName, pattern),
                 );
                 return isIncluded && !isExcluded;
