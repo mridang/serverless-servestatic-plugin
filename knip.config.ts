@@ -8,5 +8,5 @@ export default {
     'test/serverless.d.ts',
     'test/fixtures/**/index.js',
   ],
-  ignoreDependencies: [/^@semantic-release\//],
+  ignoreDependencies: [/^@semantic-release\//u],
 };

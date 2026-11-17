@@ -4,7 +4,6 @@
 import { readFile } from 'node:fs/promises';
 import type Serverless from 'serverless';
 
-import type { Logging } from 'serverless/classes/Plugin';
 import type Plugin from 'serverless/classes/Plugin';
 
 /**
@@ -49,7 +48,7 @@ class ServerlessServeStaticPlugin implements Plugin {
   constructor(
     private readonly serverless: Serverless,
     private readonly options: Serverless.Options,
-    private readonly logging: Logging,
+    private readonly logging: Plugin.Logging,
     private readonly settings: ServeStaticSettings,
   ) {
     this.hooks = {
@@ -68,6 +67,7 @@ class ServerlessServeStaticPlugin implements Plugin {
     const template =
       this.serverless.service.provider.compiledCloudFormationTemplate;
 
+    // eslint-disable-next-line functional/immutable-data -- the compiled template owned by Serverless is updated in place
     template.Resources = {
       ...template.Resources,
       ServeStaticAssetsBucket: {
@@ -147,6 +147,7 @@ class ServerlessServeStaticPlugin implements Plugin {
             SigningBehavior: 'always',
             SigningProtocol: 'sigv4',
             Description: {
+              // eslint-disable-next-line no-template-curly-in-string -- CloudFormation expands this substitution itself
               'Fn::Sub': 'OAI for S3 bucket ${ServeStaticAssetsBucket}',
             },
           },
@@ -170,12 +171,7 @@ class ServerlessServeStaticPlugin implements Plugin {
             )
             .map(([, resource]) => resource.Properties?.Code?.S3Key)
             .filter((key): key is string => key !== undefined)
-            .reduce((acc: string[], key: string) => {
-              if (!acc.includes(key)) {
-                acc.push(key);
-              }
-              return acc;
-            }, [] satisfies string[]),
+            .filter((key, index, keys) => keys.indexOf(key) === index),
           DestinationBucket: {
             Ref: 'ServeStaticAssetsBucket',
           },
